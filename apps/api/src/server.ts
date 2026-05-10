@@ -8,7 +8,7 @@ import swaggerUi from '@fastify/swagger-ui';
 import { env } from './config/env.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { vendorRoutes } from './modules/vendor/vendor.routes.js';
-import { productRoutes } from './modules/catalog/product.routes.js';
+import { productRoutes, categoryRoutes } from './modules/catalog/product.routes.js';
 import { orderRoutes } from './modules/order/order.routes.js';
 import { cartRoutes } from './modules/cart/cart.routes.js';
 import { paymentRoutes } from './modules/payment/payment.routes.js';
@@ -18,6 +18,7 @@ import { analyticsRoutes } from './modules/analytics/analytics.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 import { errorHandler } from './lib/error-handler.js';
 import { logger } from './lib/logger.js';
+import { ensureIndices } from './lib/elasticsearch.js';
 
 export async function buildServer() {
   const app = Fastify({
@@ -90,6 +91,7 @@ export async function buildServer() {
   await app.register(healthRoutes, { prefix: '/health' });
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
   await app.register(vendorRoutes, { prefix: '/api/v1/vendors' });
+  await app.register(categoryRoutes, { prefix: '/api/v1/categories' });
   await app.register(productRoutes, { prefix: '/api/v1/products' });
   await app.register(orderRoutes, { prefix: '/api/v1/orders' });
   await app.register(cartRoutes, { prefix: '/api/v1/cart' });
@@ -105,6 +107,10 @@ async function start() {
   try {
     const server = await buildServer();
     const address = await server.listen({ port: env.PORT, host: '0.0.0.0' });
+
+    // Ensure Elasticsearch indices exist (non-blocking)
+    ensureIndices().then(() => logger.info('Elasticsearch indices ready'));
+
     logger.info(`🚀 API Server running at ${address}`);
     logger.info(`📖 API Docs: ${address}/docs`);
   } catch (err) {
