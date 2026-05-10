@@ -32,14 +32,18 @@ const envSchema = z.object({
   AWS_SES_SMTP_USER: z.string().optional(),   // SES SMTP credentials (production)
   AWS_SES_SMTP_PASS: z.string().optional(),
 
-  // Stripe (international payments)
-  STRIPE_SECRET_KEY: z.string(),
-  STRIPE_WEBHOOK_SECRET: z.string(),
+  // Stripe (international payments — optional for dev)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
-  // PayHere — Primary Sri Lankan payment gateway
-  PAYHERE_MERCHANT_ID: z.string(),
-  PAYHERE_MERCHANT_SECRET: z.string(),
+  // PayHere — Primary Sri Lankan payment gateway (optional for dev)
+  PAYHERE_MERCHANT_ID: z.string().optional().default('sandbox'),
+  PAYHERE_MERCHANT_SECRET: z.string().optional().default('sandbox_secret'),
   PAYHERE_SANDBOX: z.string().default('true').transform((v) => v === 'true'),
+
+  // Mock payments — set true in dev to skip all real gateway calls
+  // POST /api/v1/payments/mock-confirm?orderId=xxx instantly confirms an order
+  MOCK_PAYMENTS: z.string().default('true').transform((v) => v === 'true'),
 
   // Dialog Genie (optional Sri Lankan digital wallet)
   GENIE_API_KEY: z.string().optional(),

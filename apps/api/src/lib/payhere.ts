@@ -6,7 +6,7 @@ import { logger } from './logger.js';
 // PayHere sandbox: https://sandbox.payhere.lk
 // PayHere production: https://www.payhere.lk
 
-const PAYHERE_BASE = env.PAYHERE_SANDBOX === 'true'
+const PAYHERE_BASE = env.PAYHERE_SANDBOX
   ? 'https://sandbox.payhere.lk'
   : 'https://www.payhere.lk';
 
