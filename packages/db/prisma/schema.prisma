@@ -105,14 +105,6 @@ enum LedgerEntryType {
   ADJUSTMENT_DEBIT
 }
 
-enum CouponType {
-  PERCENTAGE_DISCOUNT
-  FIXED_DISCOUNT
-  FREE_SHIPPING
-  BUY_X_GET_Y
-  BUNDLE
-}
-
 enum LoyaltyTier {
   BRONZE
   SILVER
@@ -120,15 +112,63 @@ enum LoyaltyTier {
   PLATINUM
 }
 
+enum CouponType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+  BUY_X_GET_Y
+  BUNDLE
+}
+
+enum ReturnReason {
+  DEFECTIVE
+  WRONG_ITEM
+  NOT_AS_DESCRIBED
+  CHANGED_MIND
+  DAMAGED_IN_SHIPPING
+  QUALITY_ISSUE
+  OTHER
+}
+
+enum ReturnResolution {
+  REFUND
+  EXCHANGE
+  STORE_CREDIT
+}
+
 enum ReturnStatus {
-  REQUESTED
+  PENDING
   APPROVED
   REJECTED
-  PICKUP_SCHEDULED
-  RECEIVED
+  ITEMS_RECEIVED
   REFUND_INITIATED
-  COMPLETED
+  REFUND_COMPLETED
+  RESOLVED
 }
+
+enum FlashSaleDiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum VendorOrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURN_REQUESTED
+}
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
 
 // ============================================================
 // USERS & IDENTITY
@@ -153,6 +193,8 @@ model User {
   vendorProfile     VendorProfile?
   customerProfile   CustomerProfile?
   orders            Order[]
+  returnRequests    ReturnRequest[]  @relation("ReturnRequestCustomer")
+  wishlistItems     WishlistItem[]
   auditLogs         AuditLog[]
   oauthAccounts     OAuthAccount[]
   sessions          UserSession[]
@@ -265,6 +307,8 @@ model VendorProfile {
   ledgerEntries    LedgerEntry[]
   payoutRequests   PayoutRequest[]
   orderItems       OrderItem[]
+  vendorOrders     VendorOrder[]           @relation("VendorOrders")
+  settlements      Settlement[]            @relation("VendorSettlements")
   staffMembers     VendorStaff[]
   staffInvitations VendorStaffInvitation[]
 
@@ -430,31 +474,33 @@ model Address {
   @@map("addresses")
 }
 
+// Wishlist container kept for legacy share-token feature (direct WishlistItem below is primary)
 model Wishlist {
-  id         String         @id @default(cuid())
+  id         String   @id @default(cuid())
   customerId String
-  name       String         @default("My Wishlist")
-  isPublic   Boolean        @default(false)
-  shareToken String?        @unique
-  createdAt  DateTime       @default(now())
+  name       String   @default("My Wishlist")
+  isPublic   Boolean  @default(false)
+  shareToken String?  @unique
+  createdAt  DateTime @default(now())
 
-  customer CustomerProfile  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  items    WishlistItem[]
+  customer CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
   @@map("wishlists")
 }
 
+// Direct per-user wishlist (customerId + productId)
 model WishlistItem {
   id         String   @id @default(cuid())
-  wishlistId String
-  variantId  String
-  addedAt    DateTime @default(now())
+  customerId String
+  productId  String
+  createdAt  DateTime @default(now())
 
-  wishlist Wishlist        @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
-  variant  ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  customer User    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product  Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([wishlistId, variantId])
+  @@unique([customerId, productId])
+  @@index([customerId])
   @@map("wishlist_items")
 }
 
@@ -538,6 +584,7 @@ model Product {
   images     ProductImage[]
   categories ProductCategory[]
   reviews    ProductReview[]
+  wishlistItems WishlistItem[]
 
   @@index([vendorId])
   @@index([status])
@@ -564,7 +611,7 @@ model ProductVariant {
   inventory     InventoryRecord?
   orderItems    OrderItem[]
   cartItems     CartItem[]
-  wishlistItems WishlistItem[]
+  flashSaleItems FlashSaleItem[]
 
   @@index([productId])
   @@index([sku])
@@ -642,7 +689,7 @@ model Cart {
   id           String    @id @default(cuid())
   customerId   String?   // null for guest carts
   sessionToken String?   @unique // for guest carts
-  currency     String    @default("USD")
+  currency     String    @default("LKR")
   expiresAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -679,25 +726,29 @@ model Order {
   customerId       String
   addressId        String?
   status           OrderStatus @default(PENDING_PAYMENT)
-  currency         String      @default("USD")
+  currency         String      @default("LKR")
   subtotal         Decimal     @db.Decimal(12, 2)
   discountTotal    Decimal     @default(0) @db.Decimal(12, 2)
   taxTotal         Decimal     @default(0) @db.Decimal(12, 2)
-  shippingTotal    Decimal     @default(0) @db.Decimal(12, 2)
-  grandTotal       Decimal     @db.Decimal(12, 2)
+  shippingFee      Decimal     @default(0) @db.Decimal(12, 2)
+  total            Decimal     @db.Decimal(12, 2)
+  paymentMethod    String?     // "PAYHERE" | "COD" | "STRIPE" | "GENIE" | "FRIMI"
+  paymentStatus    String      @default("PENDING") // "PENDING" | "PAID" | "FAILED" | "REFUNDED"
   couponCode       String?
+  couponDiscount   Decimal     @default(0) @db.Decimal(12, 2)
   notes            String?
   cancelledAt      DateTime?
   cancelledReason  String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  customer  User             @relation(fields: [customerId], references: [id])
-  address   Address?         @relation(fields: [addressId], references: [id])
-  items     OrderItem[]
-  payments  Payment[]
-  shipments OrderShipment[]
-  returns   ReturnRequest[]
+  customer     User             @relation(fields: [customerId], references: [id])
+  address      Address?         @relation(fields: [addressId], references: [id])
+  items        OrderItem[]
+  vendorOrders VendorOrder[]
+  payments     Payment[]
+  shipments    OrderShipment[]
+  returns      ReturnRequest[]
 
   @@index([customerId])
   @@index([status])
@@ -708,24 +759,56 @@ model Order {
 model OrderItem {
   id                  String   @id @default(cuid())
   orderId             String
+  vendorOrderId       String?
   variantId           String
   vendorId            String
+  productTitle        String   @default("")  // snapshot at order time
   quantity            Int
   unitPrice           Decimal  @db.Decimal(10, 2)
   discountAmount      Decimal  @default(0) @db.Decimal(10, 2)
   taxAmount           Decimal  @default(0) @db.Decimal(10, 2)
   subtotal            Decimal  @db.Decimal(10, 2)
+  total               Decimal  @db.Decimal(10, 2)
   vendorPayoutAmount  Decimal  @db.Decimal(10, 2)
   commissionAmount    Decimal  @db.Decimal(10, 2)
   createdAt           DateTime @default(now())
 
-  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant ProductVariant @relation(fields: [variantId], references: [id])
-  vendor  VendorProfile  @relation(fields: [vendorId], references: [id])
+  order       Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  vendorOrder VendorOrder?   @relation("VendorOrderItems", fields: [vendorOrderId], references: [id], onDelete: SetNull)
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+  vendor      VendorProfile  @relation(fields: [vendorId], references: [id])
+  returnItems ReturnRequestItem[]
 
   @@index([orderId])
   @@index([vendorId])
   @@map("order_items")
+}
+
+// Split order per-vendor for independent fulfillment
+model VendorOrder {
+  id             String            @id @default(cuid())
+  orderId        String
+  vendorId       String
+  status         VendorOrderStatus @default(PENDING)
+  subtotal       Decimal           @db.Decimal(12, 2)
+  commission     Decimal           @default(0) @db.Decimal(12, 2)
+  netPayable     Decimal           @db.Decimal(12, 2)
+  trackingNumber String?
+  carrier        String?           // "DOMEX" | "PICKME" | "LANKA_POST" | "KAPRUKA"
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  order  Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  vendor VendorProfile @relation("VendorOrders", fields: [vendorId], references: [id])
+  items  OrderItem[]   @relation("VendorOrderItems")
+
+  @@index([orderId])
+  @@index([vendorId])
+  @@index([status])
+  @@map("vendor_orders")
 }
 
 model Payment {
@@ -798,25 +881,42 @@ model ShipmentTrackingEvent {
 // ============================================================
 
 model ReturnRequest {
-  id           String       @id @default(cuid())
-  orderId      String
-  customerId   String
-  status       ReturnStatus @default(REQUESTED)
-  reason       String
-  description  String?
-  photoUrls    String[]
-  refundAmount Decimal?     @db.Decimal(10, 2)
-  approvedAt   DateTime?
-  rejectedAt   DateTime?
-  receivedAt   DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id                  String            @id @default(cuid())
+  orderId             String
+  customerId          String
+  status              ReturnStatus      @default(PENDING)
+  preferredResolution ReturnResolution  @default(REFUND)
+  notes               String?
+  refundableAmount    Decimal?          @db.Decimal(10, 2)
+  refundAmount        Decimal?          @db.Decimal(10, 2)
+  refundReference     String?           // Payment gateway refund ref
+  adminNote           String?
+  resolvedAt          DateTime?
+  resolvedByAdminId   String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order    Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customer User                @relation("ReturnRequestCustomer", fields: [customerId], references: [id])
+  items    ReturnRequestItem[]
 
   @@index([orderId])
   @@index([customerId])
   @@map("return_requests")
+}
+
+model ReturnRequestItem {
+  id              String        @id @default(cuid())
+  returnRequestId String
+  orderItemId     String
+  quantity        Int
+  reason          ReturnReason  @default(OTHER)
+
+  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItem     OrderItem     @relation(fields: [orderItemId], references: [id])
+
+  @@index([returnRequestId])
+  @@map("return_request_items")
 }
 
 // ============================================================
@@ -828,7 +928,7 @@ model LedgerEntry {
   vendorId      String
   type          LedgerEntryType
   amount        Decimal         @db.Decimal(12, 2)
-  currency      String          @default("USD")
+  currency      String          @default("LKR")
   referenceId   String?
   referenceType String?         // "ORDER" | "PAYOUT" | "REFUND" | "ADJUSTMENT"
   description   String?
@@ -867,26 +967,70 @@ model PayoutRequest {
 // MARKETING
 // ============================================================
 
+// Settlement created per payment cycle (monthly/weekly)
+model Settlement {
+  id              String           @id @default(cuid())
+  vendorId        String
+  status          SettlementStatus @default(PENDING)
+  periodStart     DateTime
+  periodEnd       DateTime
+  grossRevenue    Decimal          @db.Decimal(12, 2)
+  commission      Decimal          @db.Decimal(12, 2)
+  netPayable      Decimal          @db.Decimal(12, 2)
+  currency        String           @default("LKR")
+  orderCount      Int              @default(0)
+  paymentReference String?
+  paidAt          DateTime?
+  notes           String?
+  processedByAdminId String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  vendor VendorProfile @relation("VendorSettlements", fields: [vendorId], references: [id])
+
+  @@index([vendorId])
+  @@index([status])
+  @@map("settlements")
+}
+
 model Coupon {
-  id               String     @id @default(cuid())
-  code             String     @unique
-  type             CouponType
-  discountValue    Decimal    @db.Decimal(10, 2)
-  minimumOrderAmount Decimal? @db.Decimal(10, 2)
-  maximumDiscountAmount Decimal? @db.Decimal(10, 2)
-  usageLimit       Int?
-  usageCount       Int        @default(0)
-  perUserLimit     Int?
-  targetType       String?    // "ALL" | "SEGMENT" | "FIRST_TIME" | "VENDOR" | "CATEGORY"
-  targetIds        String[]   // vendor IDs, category IDs etc.
-  validFrom        DateTime
-  validTo          DateTime
-  isActive         Boolean    @default(true)
-  createdAt        DateTime   @default(now())
+  id                 String     @id @default(cuid())
+  code               String     @unique
+  type               CouponType
+  value              Decimal    @db.Decimal(10, 2)    // % or fixed LKR
+  minOrderAmount     Decimal    @default(0) @db.Decimal(10, 2)
+  maxDiscountAmount  Decimal?   @db.Decimal(10, 2)    // cap for % type
+  usageLimit         Int?                             // total uses across all users
+  usageLimitPerUser  Int        @default(1)
+  usageCount         Int        @default(0)
+  applicableVendorId String?                         // null = platform-wide
+  applicableCategoryId String?                       // null = all categories
+  startsAt           DateTime?
+  expiresAt          DateTime?
+  isActive           Boolean    @default(true)
+  createdByAdminId   String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  usages CouponUsage[]
 
   @@index([code])
   @@index([isActive])
   @@map("coupons")
+}
+
+model CouponUsage {
+  id         String   @id @default(cuid())
+  couponId   String
+  orderId    String
+  customerId String
+  usedAt     DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
+  @@index([customerId])
+  @@map("coupon_usages")
 }
 
 model AbandonedCart {
@@ -903,6 +1047,45 @@ model AbandonedCart {
   @@index([userId])
   @@map("abandoned_carts")
 }
+
+// ── Flash Sales ────────────────────────────────────────────────
+
+model FlashSale {
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  startsAt           DateTime
+  endsAt             DateTime
+  isActive           Boolean  @default(true)
+  createdByAdminId   String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  items FlashSaleItem[]
+
+  @@index([startsAt, endsAt])
+  @@index([isActive])
+  @@map("flash_sales")
+}
+
+model FlashSaleItem {
+  id            String                @id @default(cuid())
+  flashSaleId   String
+  variantId     String
+  discountType  FlashSaleDiscountType @default(PERCENTAGE)
+  discountValue Decimal               @db.Decimal(6, 2)
+  stockLimit    Int?                  // max units sold at flash price
+  soldCount     Int                   @default(0)
+  createdAt     DateTime              @default(now())
+
+  flashSale FlashSale      @relation(fields: [flashSaleId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([flashSaleId])
+  @@index([variantId])
+  @@map("flash_sale_items")
+}
+
 
 // ============================================================
 // ADMIN & AUDIT
