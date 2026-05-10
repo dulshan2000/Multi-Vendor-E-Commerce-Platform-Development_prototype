@@ -232,3 +232,16 @@ export const emailService = {
     });
   },
 };
+
+// ── Named export alias for modules that import { sendEmail } ───
+export async function sendEmail(params: { to: string; subject: string; html: string; text?: string }) {
+  await transporter.sendMail({
+    from: FROM,
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+    text: params.text,
+  });
+  logger.info({ to: params.to, subject: params.subject }, 'Email sent');
+}
+

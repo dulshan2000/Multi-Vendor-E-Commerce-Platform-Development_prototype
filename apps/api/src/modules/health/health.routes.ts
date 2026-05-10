@@ -9,16 +9,6 @@ export async function healthRoutes(app: FastifyInstance) {
     schema: {
       tags: ['System'],
       summary: 'Health check endpoint',
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            status: { type: 'string' },
-            timestamp: { type: 'string' },
-            services: { type: 'object' },
-          },
-        },
-      },
     },
     handler: async (_request, reply) => {
       const services: Record<string, 'ok' | 'error'> = {};

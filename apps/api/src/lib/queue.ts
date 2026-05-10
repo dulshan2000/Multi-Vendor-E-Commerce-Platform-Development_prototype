@@ -1,9 +1,9 @@
 import { Queue, Worker, type Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { PrismaClient } from '@prisma/client';
-import { sendEmail } from '../../lib/email.js';
-import { env } from '../../config/env.js';
-import { logger } from '../../lib/logger.js';
+import { sendEmail } from './email.js';
+import { env } from '../config/env.js';
+import { logger } from './logger.js';
 
 const prisma = new PrismaClient();
 

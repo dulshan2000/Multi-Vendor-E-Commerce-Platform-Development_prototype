@@ -1,4 +1,6 @@
+import 'dotenv/config'; // must be first — loads .env before any module reads process.env
 import Fastify from 'fastify';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -34,6 +36,10 @@ export async function buildServer() {
     },
   });
 
+  // ── Zod Type Provider (allows Zod schemas in route body/query/params) ──
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+
   // ── Security ────────────────────────────────────────────────
   await app.register(helmet, {
     contentSecurityPolicy: false, // Managed at CDN level
@@ -47,7 +53,7 @@ export async function buildServer() {
 
   await app.register(rateLimit, {
     global: false, // Applied per-route for granular control
-    redis: env.REDIS_URL,
+    // Dev: in-memory store. Prod: pass an IORedis instance here for distributed rate limiting
   });
 
   await app.register(cookie, {
