@@ -29,6 +29,8 @@ const envSchema = z.object({
 
   // Email
   SES_FROM_EMAIL: z.string().email(),
+  AWS_SES_SMTP_USER: z.string().optional(),   // SES SMTP credentials (production)
+  AWS_SES_SMTP_PASS: z.string().optional(),
 
   // Stripe (international payments)
   STRIPE_SECRET_KEY: z.string(),
