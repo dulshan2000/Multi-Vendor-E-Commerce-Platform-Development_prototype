@@ -12,8 +12,9 @@ import { productRoutes, categoryRoutes } from './modules/catalog/product.routes.
 import { cartRoutes } from './modules/cart/cart.routes.js';
 import { orderRoutes, paymentRoutes } from './modules/order/order.routes.js';
 import { searchRoutes } from './modules/search/search.routes.js';
-import { settlementRoutes } from './modules/settlement/settlement.routes.js';
-import { analyticsRoutes } from './modules/analytics/analytics.routes.js';
+import { settlementRoutes, analyticsRoutes } from './modules/settlement/settlement.routes.js';
+import { couponRoutes, returnRoutes, wishlistRoutes } from './modules/marketing/marketing.routes.js';
+import { realtimeRoutes } from './modules/realtime/realtime.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 import { errorHandler } from './lib/error-handler.js';
 import { logger } from './lib/logger.js';
@@ -98,6 +99,10 @@ export async function buildServer() {
   await app.register(searchRoutes, { prefix: '/api/v1/search' });
   await app.register(settlementRoutes, { prefix: '/api/v1/settlements' });
   await app.register(analyticsRoutes, { prefix: '/api/v1/analytics' });
+  await app.register(couponRoutes, { prefix: '/api/v1/coupons' });
+  await app.register(returnRoutes, { prefix: '/api/v1/returns' });
+  await app.register(wishlistRoutes, { prefix: '/api/v1/wishlist' });
+  await app.register(realtimeRoutes, { prefix: '/api/v1/realtime' });
 
   return app;
 }
