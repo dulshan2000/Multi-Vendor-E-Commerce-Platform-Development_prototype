@@ -14,7 +14,9 @@ import { orderRoutes, paymentRoutes } from './modules/order/order.routes.js';
 import { searchRoutes } from './modules/search/search.routes.js';
 import { settlementRoutes, analyticsRoutes } from './modules/settlement/settlement.routes.js';
 import { couponRoutes, returnRoutes, wishlistRoutes } from './modules/marketing/marketing.routes.js';
+import { flashSaleRoutes, behavioralRoutes, reportRoutes } from './modules/marketing/growth.routes.js';
 import { realtimeRoutes } from './modules/realtime/realtime.routes.js';
+import { startAbandonedCartWorker, startReportWorker } from './lib/queue.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 import { errorHandler } from './lib/error-handler.js';
 import { logger } from './lib/logger.js';
@@ -102,6 +104,9 @@ export async function buildServer() {
   await app.register(couponRoutes, { prefix: '/api/v1/coupons' });
   await app.register(returnRoutes, { prefix: '/api/v1/returns' });
   await app.register(wishlistRoutes, { prefix: '/api/v1/wishlist' });
+  await app.register(flashSaleRoutes, { prefix: '/api/v1/flash-sales' });
+  await app.register(behavioralRoutes, { prefix: '/api/v1/behavioral' });
+  await app.register(reportRoutes, { prefix: '/api/v1/reports' });
   await app.register(realtimeRoutes, { prefix: '/api/v1/realtime' });
 
   return app;
@@ -114,6 +119,11 @@ async function start() {
 
     // Ensure Elasticsearch indices exist (non-blocking)
     ensureIndices().then(() => logger.info('Elasticsearch indices ready'));
+
+    // Start BullMQ background workers
+    startAbandonedCartWorker();
+    startReportWorker();
+    logger.info('⚡ Background workers started (abandoned-cart, report-generation)');
 
     logger.info(`🚀 API Server running at ${address}`);
     logger.info(`📖 API Docs: ${address}/docs`);
