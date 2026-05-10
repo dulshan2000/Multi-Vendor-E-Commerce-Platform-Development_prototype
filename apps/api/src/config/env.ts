@@ -30,9 +30,22 @@ const envSchema = z.object({
   // Email
   SES_FROM_EMAIL: z.string().email(),
 
-  // Stripe
+  // Stripe (international payments)
   STRIPE_SECRET_KEY: z.string(),
   STRIPE_WEBHOOK_SECRET: z.string(),
+
+  // PayHere — Primary Sri Lankan payment gateway
+  PAYHERE_MERCHANT_ID: z.string(),
+  PAYHERE_MERCHANT_SECRET: z.string(),
+  PAYHERE_SANDBOX: z.string().default('true').transform((v) => v === 'true'),
+
+  // Dialog Genie (optional Sri Lankan digital wallet)
+  GENIE_API_KEY: z.string().optional(),
+  GENIE_MERCHANT_CODE: z.string().optional(),
+
+  // FriMi — Nations Trust Bank wallet (optional)
+  FRIMI_API_KEY: z.string().optional(),
+  FRIMI_MERCHANT_ID: z.string().optional(),
 
   // CORS
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
@@ -44,6 +57,11 @@ const envSchema = z.object({
   // App
   APP_URL: z.string().url().default('http://localhost:3000'),
   API_URL: z.string().url().default('http://localhost:4000'),
+
+  // Sri Lanka Tax
+  LK_VAT_RATE: z.coerce.number().default(0.18),  // 18% VAT
+  LK_NBT_RATE: z.coerce.number().default(0.02),  // 2% Nation Building Tax
+  LK_DEFAULT_CURRENCY: z.string().default('LKR'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -44,8 +44,9 @@ enum VendorOnboardingStep {
   DOCUMENT_UPLOAD
   PAYOUT_SETUP
   STORE_SETUP
+  SHIPPING_CONFIG
+  POLICY_AGREEMENT
   ADMIN_REVIEW
-  CATALOG_UPLOAD
   LIVE
 }
 
@@ -136,6 +137,8 @@ enum ReturnStatus {
 model User {
   id                String     @id @default(cuid())
   email             String     @unique
+  firstName         String?
+  lastName          String?
   passwordHash      String?
   role              UserRole   @default(CUSTOMER)
   status            UserStatus @default(PENDING_VERIFICATION)
@@ -224,25 +227,36 @@ model PasswordResetToken {
 // ============================================================
 
 model VendorProfile {
-  id               String               @id @default(cuid())
-  userId           String               @unique
-  businessName     String
-  slug             String               @unique
-  description      String?
-  logoUrl          String?
-  bannerUrl        String?
-  status           VendorStatus         @default(PENDING)
-  onboardingStep   VendorOnboardingStep @default(BUSINESS_REGISTRATION)
-  commissionTierId String?
-  taxNumber        String?
-  businessRegNo    String?
-  approvedAt       DateTime?
-  approvedById     String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  id                     String       @id @default(cuid())
+  userId                 String       @unique
+  businessName           String
+  businessType           String?      // SOLE_PROPRIETORSHIP | PARTNERSHIP | PVT_LTD | PLC | NGO
+  businessRegNo          String?
+  taxNumber              String?      // Sri Lanka TIN
+  phone                  String?      // +94XXXXXXXXX format
+  website                String?
+  addressLine1           String?
+  addressLine2           String?
+  city                   String?
+  district               String?
+  province               String?      // SriLankaProvince enum (stored as string)
+  postalCode             String?
+  status                 VendorStatus @default(PENDING)
+  onboardingStep         String       @default("business_info")
+  onboardingCompletedAt  DateTime?
+  submittedForReviewAt   DateTime?
+  policiesAcceptedAt     DateTime?
+  approvedAt             DateTime?
+  approvedByAdminId      String?
+  rejectionReason        String?
+  suspensionReason       String?
+  suspendedUntil         DateTime?
+  shippingConfig         Json?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
 
   // Relations
-  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   storefront       VendorStorefront?
   products         Product[]
   documents        VendorDocument[]
@@ -252,8 +266,8 @@ model VendorProfile {
   payoutRequests   PayoutRequest[]
   orderItems       OrderItem[]
   staffMembers     VendorStaff[]
+  staffInvitations VendorStaffInvitation[]
 
-  @@index([slug])
   @@index([status])
   @@map("vendor_profiles")
 }
@@ -261,12 +275,16 @@ model VendorProfile {
 model VendorStorefront {
   id              String   @id @default(cuid())
   vendorId        String   @unique
-  bannerUrl       String?
-  logoUrl         String?
+  slug            String   @unique
+  displayName     String
+  description     String?
+  tagline         String?
+  bannerS3Key     String?
+  logoS3Key       String?
   primaryColor    String?
   accentColor     String?
-  tagline         String?
   socialLinks     Json?    // { instagram, facebook, website }
+  categories      String[] // category IDs vendor sells in
   featuredProducts String[]
   metaTitle       String?
   metaDescription String?
@@ -274,24 +292,43 @@ model VendorStorefront {
 
   vendor VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
+  @@index([slug])
   @@map("vendor_storefronts")
 }
 
 model VendorDocument {
-  id         String   @id @default(cuid())
-  vendorId   String
-  type       String   // "business_registration" | "id_verification" | "tax_certificate" | "bank_statement"
-  fileName   String
-  s3Key      String
-  mimeType   String
-  status     String   @default("pending") // "pending" | "approved" | "rejected"
-  reviewNote String?
-  uploadedAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  vendorId     String
+  documentType String   // BUSINESS_REGISTRATION | NATIONAL_ID | TAX_CERTIFICATE | BANK_STATEMENT
+  fileName     String
+  s3Key        String
+  mimeType     String
+  status       String   @default("PENDING_REVIEW") // PENDING_REVIEW | APPROVED | REJECTED
+  reviewNote   String?
+  reviewedAt   DateTime?
+  uploadedAt   DateTime @default(now())
 
   vendor VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@index([vendorId])
   @@map("vendor_documents")
+}
+
+model VendorStaffInvitation {
+  id             String    @id @default(cuid())
+  vendorId       String
+  invitedEmail   String
+  invitedByUserId String
+  permissions    Json      // { manageOrders, manageCatalog, viewAnalytics, manageStaff }
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  vendor VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId])
+  @@index([invitedEmail])
+  @@map("vendor_staff_invitations")
 }
 
 model VendorStaff {
@@ -309,20 +346,21 @@ model VendorStaff {
 }
 
 model PayoutAccount {
-  id            String   @id @default(cuid())
-  vendorId      String
-  accountType   String   // "bank" | "paypal" | "stripe_connect"
+  id            String    @id @default(cuid())
+  vendorId      String    @unique  // One active payout account per vendor
+  accountType   String              // BANK | PAYPAL
   accountName   String
-  bankName      String?
-  accountNumber String?  // encrypted
-  routingNumber String?  // encrypted
-  isDefault     Boolean  @default(false)
+  bankName      String?             // Sri Lankan bank enum stored as string
+  branchCode    String?
+  accountNumber String?             // encrypted at rest
+  paypalEmail   String?
+  isVerified    Boolean   @default(false)
   verifiedAt    DateTime?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   vendor VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
-  @@index([vendorId])
   @@map("payout_accounts")
 }
 
@@ -331,10 +369,10 @@ model CommissionRule {
   vendorId       String?        // null = platform default
   type           CommissionType
   rate           Decimal        @db.Decimal(5, 4)  // e.g., 0.1000 = 10%
-  fixedAmount    Decimal?       @db.Decimal(10, 2)
+  fixedAmount    Decimal?       @db.Decimal(12, 2) // LKR fixed amount
   thresholdMin   Decimal?       @db.Decimal(12, 2)
   thresholdMax   Decimal?       @db.Decimal(12, 2)
-  currency       String         @default("USD")
+  currency       String         @default("LKR")   // Sri Lanka default
   effectiveFrom  DateTime       @default(now())
   effectiveTo    DateTime?
   createdAt      DateTime       @default(now())
