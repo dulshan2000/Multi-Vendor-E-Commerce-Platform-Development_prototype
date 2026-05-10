@@ -2,67 +2,83 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 function formatLKR(n: number) {
-  return `Rs. ${n.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`;
+  return `Rs. ${n.toLocaleString('en-LK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-  PENDING:    { label: 'Pending',    color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',    icon: '⏳' },
-  CONFIRMED:  { label: 'Confirmed',  color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',        icon: '✅' },
-  PROCESSING: { label: 'Processing', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400', icon: '⚙️' },
-  PACKED:     { label: 'Packed',     color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400', icon: '📦' },
-  SHIPPED:    { label: 'Shipped',    color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400',            icon: '🚚' },
-  DELIVERED:  { label: 'Delivered',  color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400', icon: '🏠' },
-  CANCELLED:  { label: 'Cancelled',  color: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400',        icon: '❌' },
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  PENDING:    { label: 'Pending',    color: 'badge-neutral' },
+  CONFIRMED:  { label: 'Confirmed',  color: 'badge-success' },
+  PROCESSING: { label: 'Processing', color: 'badge-neutral' },
+  PACKED:     { label: 'Packed',     color: 'badge-neutral' },
+  SHIPPED:    { label: 'Shipped',    color: 'badge-accent' },
+  DELIVERED:  { label: 'Delivered',  color: 'badge-success' },
+  CANCELLED:  { label: 'Cancelled',  color: 'badge-destructive' },
 };
 
-const STATUS_FLOW = ['PENDING', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED'];
+const NEXT_STATUS: Record<string, string> = {
+  PENDING: 'CONFIRMED', CONFIRMED: 'PROCESSING',
+  PROCESSING: 'PACKED', PACKED: 'SHIPPED', SHIPPED: 'DELIVERED',
+};
 
 interface VendorOrder {
-  id: string;
-  status: string;
-  total: number;
-  subtotal: number;
-  shippingFee: number;
-  trackingNumber?: string;
-  carrierId?: string;
-  createdAt: string;
-  shippedAt?: string;
-  deliveredAt?: string;
-  order: { orderNumber: string; createdAt: string; shippingAddress: Record<string, string> };
-  items: {
-    id: string;
-    productTitle: string;
-    variantSku: string;
-    variantSize?: string;
-    variantColor?: string;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-  }[];
+  id: string; status: string; total: number;
+  trackingNumber?: string; createdAt: string;
+  order: { orderNumber: string; shippingAddress: Record<string, string> };
+  items: { id: string; productTitle: string; variantSize?: string; variantColor?: string; quantity: number; total: number }[];
 }
 
 interface Analytics {
-  grossRevenue: number;
-  netRevenue: number;
-  commission: number;
-  orderCount: number;
-  paidOrderCount: number;
-  avgOrderValue: number;
-  currency: string;
+  grossRevenue: number; netRevenue: number; commission: number;
+  orderCount: number; paidOrderCount: number; avgOrderValue: number;
   ordersByStatus: Record<string, number>;
 }
 
-const NEXT_STATUS: Record<string, string> = {
-  PENDING: 'CONFIRMED',
-  CONFIRMED: 'PROCESSING',
-  PROCESSING: 'PACKED',
-  PACKED: 'SHIPPED',
-  SHIPPED: 'DELIVERED',
-};
+/* ── Metric Card ────────────────────────────────────────────── */
+
+function MetricCard({ label, value, sub, accent }: { label: string; value: string; sub: string; accent?: boolean }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      className="card p-5 border border-default"
+      style={{ borderRadius: '2px' }}
+    >
+      <p className="ui-label mb-3" style={{ color: 'var(--color-text-tertiary)' }}>{label}</p>
+      <p
+        className="text-display-m font-light"
+        style={{ color: accent ? 'var(--color-accent)' : 'var(--color-text-primary)', fontFamily: 'var(--font-cormorant)' }}
+      >
+        {value}
+      </p>
+      <p className="ui-caption mt-2" style={{ color: 'var(--color-text-tertiary)' }}>{sub}</p>
+    </motion.div>
+  );
+}
+
+/* ── Sidebar nav ────────────────────────────────────────────── */
+
+const SIDEBAR_NAV = [
+  { label: 'Overview', tab: 'orders' as const, icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+  )},
+  { label: 'Orders', tab: 'orders' as const, icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+  )},
+  { label: 'Analytics', tab: 'analytics' as const, icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+  )},
+  { label: 'Payouts', tab: 'payouts' as const, icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+  )},
+];
+
+/* ── Main Dashboard ─────────────────────────────────────────── */
 
 export default function VendorDashboardPage() {
   const [orders, setOrders] = useState<VendorOrder[]>([]);
@@ -75,271 +91,394 @@ export default function VendorDashboardPage() {
   const [balance, setBalance] = useState<{ netPayable: number; grossRevenue: number; commission: number; pendingOrderCount: number } | null>(null);
 
   const getHeaders = useCallback((): HeadersInit => {
-    const token = localStorage.getItem('mc_access_token');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('mc_access_token') : null;
     return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
   }, []);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const qs = statusFilter ? `?status=${statusFilter}&limit=20` : '?limit=20';
-      const [ordersRes, analyticsRes, balanceRes] = await Promise.all([
+      const [oRes, aRes, bRes] = await Promise.all([
         fetch(`${API}/api/v1/orders/vendor${qs}`, { headers: getHeaders() }),
         fetch(`${API}/api/v1/analytics/vendor?period=${period}`, { headers: getHeaders() }),
         fetch(`${API}/api/v1/settlements/balance`, { headers: getHeaders() }),
       ]);
-      const [oJson, aJson, bJson] = await Promise.all([ordersRes.json(), analyticsRes.json(), balanceRes.json()]);
+      const [oJson, aJson, bJson] = await Promise.all([oRes.json(), aRes.json(), bRes.json()]);
       setOrders(oJson.data ?? []);
       setAnalytics(aJson.data);
       setBalance(bJson.data);
+    } catch {
+      // Silent fail — API may not be running in dev
     } finally {
       setIsLoading(false);
     }
   }, [getHeaders, statusFilter, period]);
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const updateStatus = async (orderId: string, newStatus: string) => {
-    const tracking = trackingInputs[orderId];
     await fetch(`${API}/api/v1/orders/vendor/${orderId}/status`, {
-      method: 'PATCH',
-      headers: getHeaders(),
-      body: JSON.stringify({ status: newStatus, trackingNumber: tracking }),
+      method: 'PATCH', headers: getHeaders(),
+      body: JSON.stringify({ status: newStatus, trackingNumber: trackingInputs[orderId] }),
     });
-    fetchOrders();
+    fetchData();
   };
 
   return (
-    <div className="container-xl py-6 md:py-10">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Vendor Dashboard</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage your orders, products, and payouts</p>
+    <div className="flex min-h-screen bg-surface-0">
+      {/* ── Sidebar ──────────────────────────────────────────── */}
+      <aside
+        className="hidden lg:flex flex-col w-56 flex-shrink-0 border-r border-default sticky top-[68px] h-[calc(100vh-68px)] overflow-y-auto"
+        style={{ backgroundColor: 'var(--color-surface-1)' }}
+        aria-label="Vendor dashboard navigation"
+      >
+        <div className="p-6 border-b border-default">
+          <p className="ui-label" style={{ color: 'var(--color-text-tertiary)' }}>Vendor Portal</p>
         </div>
-        <Link href="/vendor/products/new" className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors">
-          + Add Product
-        </Link>
-      </div>
-
-      {/* Quick stats */}
-      {analytics && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Gross Revenue', value: formatLKR(analytics.grossRevenue), sub: `Last ${period}`, color: 'text-emerald-600' },
-            { label: 'Net Revenue', value: formatLKR(analytics.netRevenue), sub: `After 10% commission`, color: 'text-primary' },
-            { label: 'Total Orders', value: analytics.orderCount.toLocaleString(), sub: `${analytics.paidOrderCount} paid`, color: 'text-foreground' },
-            { label: 'Avg Order Value', value: formatLKR(analytics.avgOrderValue), sub: 'LKR', color: 'text-amber-600' },
-          ].map(({ label, value, sub, color }) => (
-            <div key={label} className="bg-card border border-border rounded-2xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">{label}</p>
-              <p className={`text-xl font-bold ${color}`}>{value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
-            </div>
+        <nav className="p-3 flex flex-col gap-0.5">
+          {SIDEBAR_NAV.map((item) => (
+            <button
+              key={item.label}
+              onClick={() => setActiveTab(item.tab)}
+              className={`flex items-center gap-3 px-3 py-2.5 text-body-s font-medium transition-colors duration-150 text-left w-full relative ${
+                activeTab === item.tab ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'
+              }`}
+              style={{ borderRadius: '2px' }}
+              aria-current={activeTab === item.tab ? 'page' : undefined}
+            >
+              {activeTab === item.tab && (
+                <span
+                  className="absolute left-0 inset-y-0 w-0.5"
+                  style={{ backgroundColor: 'var(--color-accent)', borderRadius: '0 2px 2px 0' }}
+                  aria-hidden="true"
+                />
+              )}
+              <span style={{ color: activeTab === item.tab ? 'var(--color-accent)' : 'var(--color-text-tertiary)' }}>
+                {item.icon}
+              </span>
+              {item.label}
+            </button>
           ))}
-        </div>
-      )}
+        </nav>
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit mb-6">
-        {(['orders', 'analytics', 'payouts'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg capitalize transition-all ${activeTab === tab ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        <div className="mt-auto p-4 border-t border-default">
+          <Link
+            href="/vendor/products/new"
+            className="btn-primary w-full text-center text-body-s block"
           >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Orders Tab ─────────────────────────────────────────── */}
-      {activeTab === 'orders' && (
-        <div>
-          {/* Status filter */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {['', 'PENDING', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED'].map((s) => (
-              <button
-                key={s || 'ALL'}
-                onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${statusFilter === s ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/40'}`}
-              >
-                {s ? (STATUS_CONFIG[s]?.icon + ' ' + STATUS_CONFIG[s]?.label) : 'All Orders'}
-              </button>
-            ))}
-          </div>
-
-          {isLoading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <div className="text-5xl mb-3">📦</div>
-              <p className="font-medium">No orders yet</p>
-              <p className="text-sm">Orders from customers will appear here</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {orders.map((order) => {
-                const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG['PENDING'];
-                const nextStatus = NEXT_STATUS[order.status];
-                const addr = order.order.shippingAddress;
-                const needsTracking = order.status === 'PACKED';
-
-                return (
-                  <div key={order.id} className="bg-card border border-border rounded-2xl p-5 space-y-4">
-                    {/* Order header */}
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-bold text-foreground">#{order.order.orderNumber}</span>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusCfg.color}`}>
-                            {statusCfg.icon} {statusCfg.label}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(order.createdAt).toLocaleDateString('en-LK', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-foreground">{formatLKR(Number(order.total))}</p>
-                        <p className="text-xs text-muted-foreground">{order.items.length} item{order.items.length !== 1 ? 's' : ''}</p>
-                      </div>
-                    </div>
-
-                    {/* Items */}
-                    <div className="space-y-2">
-                      {order.items.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between text-sm gap-2">
-                          <div className="min-w-0">
-                            <span className="font-medium text-foreground line-clamp-1">{item.productTitle}</span>
-                            <span className="text-xs text-muted-foreground ml-2">×{item.quantity}</span>
-                            {(item.variantSize || item.variantColor) && (
-                              <span className="text-xs text-muted-foreground ml-1">
-                                ({[item.variantSize, item.variantColor].filter(Boolean).join(', ')})
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-muted-foreground flex-shrink-0">{formatLKR(Number(item.total))}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Delivery address */}
-                    <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-                      🚚 Ship to: {addr?.recipientName}, {addr?.addressLine1}, {addr?.city}, {addr?.district}
-                      {order.trackingNumber && <span className="ml-2 text-primary font-medium">Tracking: {order.trackingNumber}</span>}
-                    </div>
-
-                    {/* Actions */}
-                    {nextStatus && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {needsTracking && (
-                          <input
-                            type="text"
-                            placeholder="Tracking number (e.g. EMS123456LK)"
-                            value={trackingInputs[order.id] ?? ''}
-                            onChange={(e) => setTrackingInputs((t) => ({ ...t, [order.id]: e.target.value }))}
-                            className="flex-1 min-w-0 h-9 px-3 text-sm border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/40"
-                          />
-                        )}
-                        <button
-                          onClick={() => updateStatus(order.id, nextStatus)}
-                          className="flex-shrink-0 px-4 py-2 text-sm font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                        >
-                          Mark as {STATUS_CONFIG[nextStatus]?.label}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+            + Add Product
+          </Link>
         </div>
-      )}
+      </aside>
 
-      {/* ── Analytics Tab ───────────────────────────────────────── */}
-      {activeTab === 'analytics' && analytics && (
-        <div className="space-y-6">
-          {/* Period selector */}
-          <div className="flex gap-2">
-            {(['7d', '30d', '90d'] as const).map((p) => (
-              <button key={p} onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${period === p ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground'}`}>
-                {p === '7d' ? 'Last 7 days' : p === '30d' ? 'Last 30 days' : 'Last 90 days'}
-              </button>
-            ))}
-          </div>
+      {/* ── Main content ─────────────────────────────────────── */}
+      <main className="flex-1 overflow-x-hidden">
+        <div className="container-editorial max-w-none py-8 px-6 lg:px-8">
 
-          {/* Revenue breakdown */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              { label: 'Gross Revenue', value: formatLKR(analytics.grossRevenue), icon: '💰', color: 'text-emerald-600' },
-              { label: 'Platform Commission (10%)', value: formatLKR(analytics.commission), icon: '🏦', color: 'text-rose-500' },
-              { label: 'Net Revenue', value: formatLKR(analytics.netRevenue), icon: '✅', color: 'text-primary' },
-            ].map(({ label, value, icon, color }) => (
-              <div key={label} className="bg-card border border-border rounded-2xl p-5 text-center">
-                <div className="text-3xl mb-2">{icon}</div>
-                <p className={`text-2xl font-bold ${color}`}>{value}</p>
-                <p className="text-xs text-muted-foreground mt-1">{label}</p>
+          {/* Page header */}
+          <div className="flex items-start justify-between mb-8 gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="accent-line" aria-hidden="true" />
+                <span className="ui-label" style={{ color: 'var(--color-accent)' }}>
+                  {activeTab === 'orders' ? 'Orders' : activeTab === 'analytics' ? 'Analytics' : 'Payouts'}
+                </span>
               </div>
-            ))}
-          </div>
-
-          {/* Order status breakdown */}
-          <div className="bg-card border border-border rounded-2xl p-5">
-            <h3 className="font-bold text-foreground mb-4">Orders by Status</h3>
-            <div className="flex flex-wrap gap-3">
-              {Object.entries(analytics.ordersByStatus).map(([status, count]) => {
-                const cfg = STATUS_CONFIG[status];
-                return (
-                  <div key={status} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${cfg?.color ?? 'bg-muted text-muted-foreground'}`}>
-                    {cfg?.icon} {cfg?.label ?? status}: {count}
-                  </div>
-                );
-              })}
+              <h1 className="display-m" style={{ color: 'var(--color-text-primary)' }}>
+                Vendor Dashboard
+              </h1>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Payouts Tab ──────────────────────────────────────────── */}
-      {activeTab === 'payouts' && balance && (
-        <div className="space-y-6">
-          <div className="bg-card border border-border rounded-2xl p-6">
-            <h3 className="font-bold text-foreground mb-4">Pending Balance</h3>
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {[
-                { label: 'Gross Revenue', value: formatLKR(balance.grossRevenue) },
-                { label: 'Commission (10%)', value: `- ${formatLKR(balance.commission)}` },
-                { label: 'Net Payable', value: formatLKR(balance.netPayable) },
-              ].map(({ label, value }) => (
-                <div key={label}>
-                  <p className="text-xs text-muted-foreground mb-1">{label}</p>
-                  <p className="text-lg font-bold text-foreground">{value}</p>
-                </div>
+            {/* Mobile tab switcher */}
+            <div className="flex lg:hidden gap-1">
+              {(['orders', 'analytics', 'payouts'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-3 py-1.5 text-body-s font-medium capitalize transition-colors ${
+                    activeTab === tab
+                      ? 'text-text-primary border-b-2'
+                      : 'text-text-tertiary'
+                  }`}
+                  style={{ borderColor: activeTab === tab ? 'var(--color-accent)' : 'transparent' }}
+                >
+                  {tab}
+                </button>
               ))}
             </div>
-            <p className="text-sm text-muted-foreground">
-              Based on {balance.pendingOrderCount} delivered orders awaiting settlement.
-              Payouts are processed weekly by the platform admin.
-            </p>
           </div>
 
-          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-700 dark:text-amber-400">
-            💡 Payouts are processed every Friday via bank transfer to your registered bank account.
-            Ensure your bank details are up to date in your vendor profile.
-          </div>
+          {/* ── KPI cards ──────────────────────────────────── */}
+          {analytics && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <MetricCard label="Gross Revenue" value={formatLKR(analytics.grossRevenue)} sub={`Last ${period}`} accent />
+              <MetricCard label="Net Revenue" value={formatLKR(analytics.netRevenue)} sub="After 10% commission" />
+              <MetricCard label="Total Orders" value={analytics.orderCount.toLocaleString()} sub={`${analytics.paidOrderCount} paid`} />
+              <MetricCard label="Avg. Order" value={formatLKR(analytics.avgOrderValue)} sub="Per transaction" />
+            </div>
+          )}
 
-          <div className="text-center">
-            <Link href="/vendor/settings/payout" className="text-sm text-primary hover:underline font-medium">
-              Update Bank Account Details →
-            </Link>
-          </div>
+          {/* ── ORDERS TAB ─────────────────────────────────── */}
+          {activeTab === 'orders' && (
+            <section aria-label="Order management">
+              {/* Status filter pills */}
+              <div className="flex flex-wrap gap-2 mb-6" role="group" aria-label="Filter orders by status">
+                {['', 'PENDING', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED'].map((s) => (
+                  <button
+                    key={s || 'ALL'}
+                    onClick={() => setStatusFilter(s)}
+                    className={`px-3 py-1.5 text-body-s font-medium border transition-colors duration-150 ${
+                      statusFilter === s
+                        ? 'border-accent text-accent bg-accent-dim'
+                        : 'border-default text-text-tertiary hover:border-accent hover:text-accent'
+                    }`}
+                    style={{ borderRadius: '2px' }}
+                    aria-pressed={statusFilter === s}
+                  >
+                    {s ? (STATUS_CONFIG[s]?.label ?? s) : 'All Orders'}
+                  </button>
+                ))}
+              </div>
+
+              {isLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="skeleton h-32 w-full" style={{ borderRadius: '2px' }} />
+                  ))}
+                </div>
+              ) : orders.length === 0 ? (
+                <div
+                  className="flex flex-col items-center justify-center py-20 border border-default text-center"
+                  style={{ borderRadius: '2px' }}
+                >
+                  <svg className="w-12 h-12 mb-4" style={{ color: 'var(--color-text-tertiary)' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1}>
+                    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+                  </svg>
+                  <p className="text-body font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>No orders yet</p>
+                  <p className="text-body-s" style={{ color: 'var(--color-text-tertiary)' }}>Orders from customers will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {orders.map((order, i) => {
+                    const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG['PENDING'];
+                    const nextStatus = NEXT_STATUS[order.status];
+                    const addr = order.order.shippingAddress;
+
+                    return (
+                      <motion.div
+                        key={order.id}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.04, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                        className="border border-default p-5 space-y-4"
+                        style={{ backgroundColor: 'var(--color-surface-1)', borderRadius: '2px' }}
+                      >
+                        {/* Header row */}
+                        <div className="flex items-start justify-between gap-4 flex-wrap">
+                          <div>
+                            <div className="flex items-center gap-3 mb-1">
+                              <span className="text-body-s font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                                #{order.order.orderNumber}
+                              </span>
+                              <span className={statusCfg.color}>
+                                {statusCfg.label}
+                              </span>
+                            </div>
+                            <p className="ui-caption" style={{ color: 'var(--color-text-tertiary)' }}>
+                              {new Date(order.createdAt).toLocaleDateString('en-LK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-body-s font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                              {formatLKR(Number(order.total))}
+                            </p>
+                            <p className="ui-caption" style={{ color: 'var(--color-text-tertiary)' }}>
+                              {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Items */}
+                        <div className="space-y-1.5 border-t border-default pt-3">
+                          {order.items.map((item) => (
+                            <div key={item.id} className="flex items-center justify-between gap-2">
+                              <span className="text-body-s line-clamp-1" style={{ color: 'var(--color-text-secondary)' }}>
+                                {item.productTitle}
+                                {(item.variantSize || item.variantColor) && (
+                                  <span style={{ color: 'var(--color-text-tertiary)' }}>
+                                    {' '}({[item.variantSize, item.variantColor].filter(Boolean).join(', ')})
+                                  </span>
+                                )}
+                                {' '}<span style={{ color: 'var(--color-text-tertiary)' }}>×{item.quantity}</span>
+                              </span>
+                              <span className="text-body-s flex-shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+                                {formatLKR(Number(item.total))}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Shipping address */}
+                        <div
+                          className="flex items-start gap-2 px-3 py-2 text-body-s border-t border-default pt-3"
+                          style={{ color: 'var(--color-text-tertiary)' }}
+                        >
+                          <svg className="w-4 h-4 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                          <span>
+                            {addr?.recipientName}, {addr?.addressLine1}, {addr?.city}
+                            {order.trackingNumber && (
+                              <span style={{ color: 'var(--color-accent)' }}>
+                                {' '}· Tracking: {order.trackingNumber}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Actions */}
+                        {nextStatus && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
+                          <div className="flex items-center gap-3 flex-wrap border-t border-default pt-3">
+                            {order.status === 'PACKED' && (
+                              <input
+                                type="text"
+                                placeholder="Tracking number (e.g. EMS123456LK)"
+                                value={trackingInputs[order.id] ?? ''}
+                                onChange={(e) => setTrackingInputs((t) => ({ ...t, [order.id]: e.target.value }))}
+                                aria-label="Tracking number"
+                                className="flex-1 min-w-0 h-9 px-3 text-body-s border border-default bg-surface-0 focus:outline-none focus:border-accent transition-colors"
+                                style={{ borderRadius: '2px', color: 'var(--color-text-primary)' }}
+                              />
+                            )}
+                            <button
+                              onClick={() => updateStatus(order.id, nextStatus)}
+                              className="btn-primary !py-2 flex-shrink-0"
+                            >
+                              Mark as {STATUS_CONFIG[nextStatus]?.label}
+                            </button>
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ── ANALYTICS TAB ──────────────────────────────── */}
+          {activeTab === 'analytics' && analytics && (
+            <section aria-label="Vendor analytics">
+              {/* Period selector */}
+              <div className="flex gap-2 mb-6" role="group" aria-label="Select analytics period">
+                {(['7d', '30d', '90d'] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPeriod(p)}
+                    className={`px-4 py-2 text-body-s font-medium border transition-colors duration-150 ${
+                      period === p
+                        ? 'border-accent text-accent bg-accent-dim'
+                        : 'border-default text-text-tertiary hover:border-accent'
+                    }`}
+                    style={{ borderRadius: '2px' }}
+                    aria-pressed={period === p}
+                  >
+                    {p === '7d' ? 'Last 7 days' : p === '30d' ? 'Last 30 days' : 'Last 90 days'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Revenue breakdown */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                {[
+                  { label: 'Gross Revenue', value: formatLKR(analytics.grossRevenue), accent: true },
+                  { label: 'Platform Commission (10%)', value: `− ${formatLKR(analytics.commission)}`, accent: false },
+                  { label: 'Net Revenue', value: formatLKR(analytics.netRevenue), accent: true },
+                ].map(({ label, value, accent }) => (
+                  <div
+                    key={label}
+                    className="border border-default p-6"
+                    style={{ backgroundColor: 'var(--color-surface-1)', borderRadius: '2px' }}
+                  >
+                    <p className="ui-label mb-3" style={{ color: 'var(--color-text-tertiary)' }}>{label}</p>
+                    <p
+                      className="text-display-m font-light"
+                      style={{
+                        color: accent ? 'var(--color-accent)' : 'var(--color-destructive)',
+                        fontFamily: 'var(--font-cormorant)',
+                      }}
+                    >
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Order status breakdown */}
+              <div
+                className="border border-default p-6"
+                style={{ backgroundColor: 'var(--color-surface-1)', borderRadius: '2px' }}
+              >
+                <h3 className="heading-m mb-5" style={{ color: 'var(--color-text-primary)' }}>
+                  Orders by Status
+                </h3>
+                <div className="flex flex-wrap gap-3">
+                  {Object.entries(analytics.ordersByStatus).map(([status, count]) => (
+                    <div key={status} className={STATUS_CONFIG[status]?.color ?? 'badge-neutral'}>
+                      {STATUS_CONFIG[status]?.label ?? status}: {count}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ── PAYOUTS TAB ────────────────────────────────── */}
+          {activeTab === 'payouts' && balance && (
+            <section aria-label="Payout information">
+              <div
+                className="border border-default p-6 mb-4"
+                style={{ backgroundColor: 'var(--color-surface-1)', borderRadius: '2px' }}
+              >
+                <h2 className="heading-m mb-6" style={{ color: 'var(--color-text-primary)' }}>
+                  Pending Balance
+                </h2>
+                <div className="grid grid-cols-3 gap-6 mb-6">
+                  {[
+                    { label: 'Gross Revenue', value: formatLKR(balance.grossRevenue) },
+                    { label: 'Commission (10%)', value: `− ${formatLKR(balance.commission)}` },
+                    { label: 'Net Payable', value: formatLKR(balance.netPayable) },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="ui-label mb-2" style={{ color: 'var(--color-text-tertiary)' }}>{label}</p>
+                      <p className="text-body-l font-semibold" style={{ color: 'var(--color-text-primary)' }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-body-s" style={{ color: 'var(--color-text-tertiary)' }}>
+                  Based on {balance.pendingOrderCount} delivered orders awaiting settlement.
+                  Payouts are processed weekly by the platform admin.
+                </p>
+              </div>
+
+              <div
+                className="border border-default p-4 mb-4 text-body-s"
+                style={{
+                  backgroundColor: 'var(--color-accent-dim)',
+                  borderColor: 'var(--color-accent-muted)',
+                  color: 'var(--color-accent)',
+                  borderRadius: '2px',
+                }}
+              >
+                Payouts are processed every Friday via bank transfer to your registered bank account.
+                Ensure your bank details are up to date in your vendor profile.
+              </div>
+
+              <Link href="/vendor/settings/payout" className="text-body-s font-medium hover:text-accent transition-colors" style={{ color: 'var(--color-text-secondary)' }}>
+                Update Bank Account Details →
+              </Link>
+            </section>
+          )}
         </div>
-      )}
+      </main>
     </div>
   );
 }

@@ -31,8 +31,8 @@ export function AddToCartButton({ variants }: AddToCartButtonProps) {
   const [quantity, setQuantity] = useState(1);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const sizes = [...new Set(variants.map((v) => v.size).filter(Boolean))] as string[];
-  const colors = [...new Set(variants.map((v) => v.color).filter(Boolean))] as string[];
+  const sizes = Array.from(new Set(variants.map((v) => v.size).filter(Boolean))) as string[];
+  const colors = Array.from(new Set(variants.map((v) => v.color).filter(Boolean))) as string[];
 
   const isOutOfStock = selectedVariant.availableQty <= 0;
   const maxQty = Math.min(selectedVariant.availableQty, 99);
