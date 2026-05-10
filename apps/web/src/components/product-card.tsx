@@ -36,7 +36,7 @@ function StarRating({ rating, count }: { rating: number; count: number }) {
         ))}
       </div>
       {count > 0 && (
-        <span className="text-xs text-muted-foreground">({count.toLocaleString()})</span>
+        <span className="text-xs text-zinc-500">({count.toLocaleString()})</span>
       )}
     </div>
   );
@@ -51,11 +51,11 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="group relative flex flex-col bg-card border border-border rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/30"
+      className="group relative flex flex-col bg-white border border-zinc-200 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 hover:border-violet-600/30"
       aria-label={`View ${product.title}`}
     >
       {/* Image */}
-      <div className="relative aspect-square bg-muted overflow-hidden">
+      <div className="relative aspect-square bg-zinc-100 overflow-hidden">
         {product.primaryImageUrl ? (
           <Image
             src={product.primaryImageUrl}
@@ -66,8 +66,8 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
             priority={priority}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-muted">
-            <svg className="w-12 h-12 text-muted-foreground/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="absolute inset-0 flex items-center justify-center bg-zinc-100">
+            <svg className="w-12 h-12 text-zinc-500/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
@@ -99,10 +99,10 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
       {/* Info */}
       <div className="flex flex-col gap-1 p-3">
         {/* Vendor */}
-        <span className="text-xs text-muted-foreground truncate">{product.vendorName}</span>
+        <span className="text-xs text-zinc-500 truncate">{product.vendorName}</span>
 
         {/* Title */}
-        <h3 className="text-sm font-medium text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+        <h3 className="text-sm font-medium text-zinc-900 leading-snug line-clamp-2 group-hover:text-violet-600 transition-colors">
           {product.title}
         </h3>
 
@@ -113,9 +113,9 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
 
         {/* Price (LKR) */}
         <div className="flex items-baseline gap-2 mt-1">
-          <span className="text-base font-bold text-foreground">{formatLKR(product.minPrice)}</span>
+          <span className="text-base font-bold text-zinc-900">{formatLKR(product.minPrice)}</span>
           {product.maxPrice > product.minPrice && (
-            <span className="text-xs text-muted-foreground">– {formatLKR(product.maxPrice)}</span>
+            <span className="text-xs text-zinc-500">– {formatLKR(product.maxPrice)}</span>
           )}
         </div>
 
@@ -126,12 +126,12 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
               <span
                 key={color}
                 title={color}
-                className="w-3.5 h-3.5 rounded-full border border-border"
+                className="w-3.5 h-3.5 rounded-full border border-zinc-200"
                 style={{ backgroundColor: color.startsWith('#') ? color : color.toLowerCase() }}
               />
             ))}
             {product.colors.length > 4 && (
-              <span className="text-xs text-muted-foreground">+{product.colors.length - 4}</span>
+              <span className="text-xs text-zinc-500">+{product.colors.length - 4}</span>
             )}
           </div>
         )}

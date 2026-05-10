@@ -88,6 +88,11 @@
     @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
   }
 
+  /* container-xl — used throughout homepage and layouts */
+  .container-xl {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
   /* Product card hover animation */
   .product-card {
     @apply relative overflow-hidden rounded-xl bg-white shadow-[var(--shadow-card)] transition-all duration-300

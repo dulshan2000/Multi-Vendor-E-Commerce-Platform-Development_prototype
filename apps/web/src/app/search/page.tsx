@@ -87,12 +87,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     <div className="container-xl py-6 md:py-10">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">
+        <h1 className="text-2xl font-bold text-zinc-900">
           {q ? (
-            <>Search results for <span className="text-primary">&ldquo;{q}&rdquo;</span></>
+            <>Search results for <span className="text-violet-600">&ldquo;{q}&rdquo;</span></>
           ) : 'All Products'}
         </h1>
-        <p className="text-muted-foreground text-sm mt-1">
+        <p className="text-zinc-500 text-sm mt-1">
           {total.toLocaleString()} {total === 1 ? 'product' : 'products'} found
         </p>
       </div>
@@ -104,7 +104,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             <Link
               key={f.key}
               href={buildUrl({ [f.key]: undefined, page: '1' })}
-              className="inline-flex items-center gap-1.5 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-3 py-1 hover:bg-primary/20 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs bg-violet-600/10 text-violet-600 border border-violet-600/20 rounded-full px-3 py-1 hover:bg-violet-600/20 transition-colors"
             >
               {f.label}: {f.value}
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -114,7 +114,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           ))}
           <Link
             href={q ? `/search?q=${encodeURIComponent(q)}` : '/search'}
-            className="text-xs text-muted-foreground hover:text-foreground underline px-2 py-1"
+            className="text-xs text-zinc-500 hover:text-zinc-900 underline px-2 py-1"
           >
             Clear all
           </Link>
@@ -126,12 +126,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <aside className="hidden md:flex flex-col gap-6 w-56 flex-shrink-0">
           {/* In Stock filter */}
           <div>
-            <h3 className="text-sm font-semibold mb-2 text-foreground">Availability</h3>
+            <h3 className="text-sm font-semibold mb-2 text-zinc-900">Availability</h3>
             <Link
               href={buildUrl({ inStock: params.inStock === 'true' ? undefined : 'true', page: '1' })}
-              className={`flex items-center gap-2 text-sm py-1 hover:text-primary transition-colors ${params.inStock === 'true' ? 'text-primary font-medium' : 'text-muted-foreground'}`}
+              className={`flex items-center gap-2 text-sm py-1 hover:text-violet-600 transition-colors ${params.inStock === 'true' ? 'text-violet-600 font-medium' : 'text-zinc-500'}`}
             >
-              <span className={`w-4 h-4 border rounded flex items-center justify-center ${params.inStock === 'true' ? 'bg-primary border-primary' : 'border-border'}`}>
+              <span className={`w-4 h-4 border rounded flex items-center justify-center ${params.inStock === 'true' ? 'bg-violet-600 border-violet-600' : 'border-zinc-200'}`}>
                 {params.inStock === 'true' && <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path d="M5 12l5 5L20 7"/></svg>}
               </span>
               In Stock Only
@@ -141,14 +141,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {/* Colors */}
           {agg?.colors?.buckets && agg.colors.buckets.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold mb-2 text-foreground">Color</h3>
+              <h3 className="text-sm font-semibold mb-2 text-zinc-900">Color</h3>
               <div className="flex flex-wrap gap-1.5">
                 {agg.colors.buckets.slice(0, 12).map((b) => (
                   <Link
                     key={b.key}
                     href={buildUrl({ color: params.color === b.key ? undefined : b.key, page: '1' })}
                     title={`${b.key} (${b.doc_count})`}
-                    className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${params.color === b.key ? 'border-primary scale-110' : 'border-border'}`}
+                    className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${params.color === b.key ? 'border-violet-600 scale-110' : 'border-zinc-200'}`}
                     style={{ backgroundColor: b.key.startsWith('#') ? b.key : b.key.toLowerCase() }}
                   />
                 ))}
@@ -159,13 +159,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {/* Sizes */}
           {agg?.sizes?.buckets && agg.sizes.buckets.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold mb-2 text-foreground">Size</h3>
+              <h3 className="text-sm font-semibold mb-2 text-zinc-900">Size</h3>
               <div className="flex flex-wrap gap-1.5">
                 {agg.sizes.buckets.slice(0, 12).map((b) => (
                   <Link
                     key={b.key}
                     href={buildUrl({ size: params.size === b.key ? undefined : b.key, page: '1' })}
-                    className={`px-2.5 py-1 text-xs border rounded-lg hover:border-primary transition-colors ${params.size === b.key ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground'}`}
+                    className={`px-2.5 py-1 text-xs border rounded-lg hover:border-violet-600 transition-colors ${params.size === b.key ? 'bg-violet-600 text-violet-600-foreground border-violet-600' : 'border-zinc-200 text-zinc-500'}`}
                   >
                     {b.key}
                   </Link>
@@ -177,7 +177,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {/* Price range */}
           {agg?.priceRange && (
             <div>
-              <h3 className="text-sm font-semibold mb-2 text-foreground">Price (LKR)</h3>
+              <h3 className="text-sm font-semibold mb-2 text-zinc-900">Price (LKR)</h3>
               <div className="flex flex-col gap-2 text-sm">
                 {[
                   { label: 'Under Rs. 1,000', min: undefined, max: '1000' },
@@ -188,7 +188,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   <Link
                     key={label}
                     href={buildUrl({ minPrice: min, maxPrice: max, page: '1' })}
-                    className={`text-sm hover:text-primary transition-colors ${params.minPrice === min && params.maxPrice === max ? 'text-primary font-medium' : 'text-muted-foreground'}`}
+                    className={`text-sm hover:text-violet-600 transition-colors ${params.minPrice === min && params.maxPrice === max ? 'text-violet-600 font-medium' : 'text-zinc-500'}`}
                   >
                     {label}
                   </Link>
@@ -201,24 +201,25 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         {/* Results */}
         <div className="flex-1 min-w-0">
           {/* Sort bar */}
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-muted-foreground">{total.toLocaleString()} results</p>
-            <div className="flex items-center gap-2">
-              <label htmlFor="sort-select" className="text-sm text-muted-foreground">Sort by:</label>
-              <select
-                id="sort-select"
-                defaultValue={sort}
-                onChange={(e) => {
-                  window.location.href = buildUrl({ sort: e.target.value, page: '1' });
-                }}
-                className="text-sm bg-card border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
-              >
-                {SORT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+            <p className="text-sm text-zinc-500">{total.toLocaleString()} results</p>
+            <div className="flex items-center gap-1 flex-wrap">
+              {SORT_OPTIONS.map((o) => (
+                <Link
+                  key={o.value}
+                  href={buildUrl({ sort: o.value, page: '1' })}
+                  className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
+                    sort === o.value
+                      ? 'bg-violet-600 text-white border-violet-600 font-semibold'
+                      : 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300'
+                  }`}
+                >
+                  {o.label}
+                </Link>
+              ))}
             </div>
           </div>
+
 
           {/* Grid */}
           {products.length > 0 ? (
@@ -230,11 +231,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           ) : (
             <div className="py-20 text-center">
               <div className="text-5xl mb-4">🔍</div>
-              <h2 className="text-xl font-semibold text-foreground mb-2">No products found</h2>
-              <p className="text-muted-foreground mb-6">
+              <h2 className="text-xl font-semibold text-zinc-900 mb-2">No products found</h2>
+              <p className="text-zinc-500 mb-6">
                 Try adjusting your filters or search term
               </p>
-              <Link href="/search" className="text-primary hover:underline font-medium">
+              <Link href="/search" className="text-violet-600 hover:underline font-medium">
                 Clear all filters
               </Link>
             </div>
@@ -244,15 +245,15 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-10">
               {page > 1 && (
-                <Link href={buildUrl({ page: String(page - 1) })} className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-muted transition-colors">
+                <Link href={buildUrl({ page: String(page - 1) })} className="px-4 py-2 border border-zinc-200 rounded-lg text-sm hover:bg-zinc-100 transition-colors">
                   ← Previous
                 </Link>
               )}
-              <span className="text-sm text-muted-foreground px-2">
+              <span className="text-sm text-zinc-500 px-2">
                 Page {page} of {totalPages}
               </span>
               {page < totalPages && (
-                <Link href={buildUrl({ page: String(page + 1) })} className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-muted transition-colors">
+                <Link href={buildUrl({ page: String(page + 1) })} className="px-4 py-2 border border-zinc-200 rounded-lg text-sm hover:bg-zinc-100 transition-colors">
                   Next →
                 </Link>
               )}
