@@ -79,9 +79,7 @@ services:
     restart: unless-stopped
     ports:
       - '1025:1025' # SMTP
-      - '8025:8025' # Web UI
-    profiles:
-      - debug
+      - '8025:8025' # Web UI → http://localhost:8025
 
 volumes:
   postgres_data:
