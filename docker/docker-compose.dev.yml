@@ -1,0 +1,93 @@
+version: '3.9'
+
+services:
+  # ── PostgreSQL 16 ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: markcomm_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: markcomm_dev
+      POSTGRES_USER: markcomm
+      POSTGRES_PASSWORD: markcomm_local_dev
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U markcomm -d markcomm_dev']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis 7 ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: markcomm_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass markcomm_local_dev
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'markcomm_local_dev', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Elasticsearch 8 ───────────────────────────────────────────
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: markcomm_elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - cluster.name=markcomm-dev
+    ports:
+      - '9200:9200'
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── Kibana (optional dev UI for Elasticsearch) ─────────────────
+  kibana:
+    image: kibana:8.11.0
+    container_name: markcomm_kibana
+    restart: unless-stopped
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+    ports:
+      - '5601:5601'
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    profiles:
+      - debug # Only starts with: docker compose --profile debug up
+
+  # ── MailHog (local email testing) ────────────────────────────
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: markcomm_mailhog
+    restart: unless-stopped
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # Web UI
+    profiles:
+      - debug
+
+volumes:
+  postgres_data:
+  redis_data:
+  elasticsearch_data:
+
+networks:
+  default:
+    name: markcomm_dev_network
